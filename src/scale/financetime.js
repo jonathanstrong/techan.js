@@ -182,20 +182,40 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         .map(domainTicks(visibleDomain, closestTicks))    // Line up interval ticks with domain, possibly adding duplicates
         .reduce(sequentialDuplicates, []);                // Filter out duplicates, produce new 'reduced' array
     };
-
     function tickMethod(visibleDomain, indexDomain, count) {
       if(visibleDomain.length == 1) return genericFormat; // If we only have 1 to display, show the generic tick method
 
-      var visibleDomainExtent = visibleDomain[visibleDomain.length-1] - visibleDomain[0],
-        intraday = visibleDomainExtent/dailyStep < 1, // Determine whether we're showing daily or intraday data
-        methods = intraday ? tickMethods.intraday : tickMethods.daily,
+      var visibleDomainIncrement = visibleDomain[1] - visibleDomain[0],
+        intraday_data = visibleDomainIncrement/dailyStep < 1, // Determine whether we're showing daily or intraday data
+        visibleDomainExtent = visibleDomain[visibleDomain.length-1] - visibleDomain[0],
+        days_visible = visibleDomainExtent/dailyStep,
+        intraday = (intraday_data & days_visible < 3),
+        methods = intraday  ? tickMethods.intraday : tickMethods.daily,
         tickSteps = intraday ? intradayTickSteps : dailyTickSteps,
         k = Math.min(Math.round(countK(visibleDomain, indexDomain)*count), count),
         target = visibleDomainExtent/k, // Adjust the target based on proportion of domain that is visible
         i = d3_bisect(tickSteps, target);
 
-      return i == methods.length ? methods[i-1] : // Return the largest tick method
-        i ? methods[target/tickSteps[i-1] < tickSteps[i]/target ? i-1 : i] : methods[i]; // Else return close approximation or first tickMethod
+      if ( i == methods.length ) { // return the largest tick method
+        return methods[i-1]; 
+      }
+      else {
+        if ( i ) {
+          //try to search index j (i +/- 1) for
+          //tickSteps[j]/target ratio closest to 1
+          var diffs = [];
+          [i-1, i, i+1].forEach(function(j){
+              diffs.push([j, Math.abs(1-tickSteps[j]/target)]);
+          });
+          diffs.sort(function(a, b){
+              return a[1]-b[1];
+          });
+          return methods[diffs[0][0]]; 
+        }
+        else {
+          return methods[0];
+        }
+      }
     }
 
     /**
