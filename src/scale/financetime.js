@@ -341,13 +341,13 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         ["%H:%M", function(d) { prev_date = d; return d.getMinutes(); }],
         ["%H:%M", function (d) { prev_date = d; return true; }]
       ]),
-      genericTickMethod = [d3_time.second, 1, d3_time.format.multi([
-          ["%H:%M", function(d) { return d.getSeconds(); }],
-          ["%H:%M", function(d) { return d.getMinutes(); }],
-          ["%H:%M", function(d) { return d.getHours(); }],
-          ['%m/%e', function() { return true; }]
-         ])
-       ];
+      genericFormat = [d3_time.second, 1, d3_time.format.multi([
+          [":%S", function(d) { return d.getSeconds(); }],
+          ["%I:%M", function(d) { return d.getMinutes(); }],
+          ["%I %p", function(d) { return d.getHours(); }],
+          ['%b %e', function() { return true; }]
+        ])
+      ];
 
   var dayFormatUtc = d3_time.format.utc('%b %e'),
       yearFormatUtc = d3_time.format.utc.multi([
