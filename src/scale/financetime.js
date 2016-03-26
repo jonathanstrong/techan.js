@@ -295,6 +295,7 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
     return previous;
   }
 
+
   var dailyStep = 864e5,
       dailyTickSteps = [
         dailyStep,  // 1-day
@@ -312,30 +313,41 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         3e5,    // 5-minute
         9e5,    // 15-minute
         18e5,   // 30-minute
-        36e5,   // 1-hour
-        108e5,  // 3-hour
-        216e5,  // 6-hour
-        432e5,  // 12-hour
+        1*36e5, // 1-hour
+        2*36e5, // 2-hour
+        3*36e5, // 3-hour
+        4*36e5, // 4-hour
+        6*36e5, // 6-hour
+        12*36e5,// 12-hour
         864e5   // 1-day
       ];
 
-  var dayFormat = d3_time.format('%b %e'),
+  var prev_date;
+  var dayFormat = d3_time.format('%m/%e'),
       yearFormat = d3_time.format.multi([
-        ['%b %Y', function(d) { return d.getMonth(); }],
+        ['%b', function(d) { return d.getMonth(); }],
         ['%Y', function() { return true; }]
       ]),
       intradayFormat = d3_time.format.multi([
-        [":%S", function(d) { return d.getSeconds(); }],
-        ["%I:%M", function(d) { return d.getMinutes(); }],
-        ["%I %p", function () { return true; }]
+        ["%m/%e", function(d) {
+           if (prev_date !== undefined && d.getDate() != prev_date.getDate()) {
+               prev_date = d;
+               return true;
+           }
+           prev_date = d;
+           return false;
+        }],
+        ["%H:%M:%S", function(d) { prev_date = d; return d.getSeconds(); }],
+        ["%H:%M", function(d) { prev_date = d; return d.getMinutes(); }],
+        ["%H:%M", function (d) { prev_date = d; return true; }]
       ]),
-      genericFormat = [d3_time.second, 1, d3_time.format.multi([
-          [":%S", function(d) { return d.getSeconds(); }],
-          ["%I:%M", function(d) { return d.getMinutes(); }],
-          ["%I %p", function(d) { return d.getHours(); }],
-          ['%b %e', function() { return true; }]
-        ])
-      ];
+      genericTickMethod = [d3_time.second, 1, d3_time.format.multi([
+          ["%H:%M", function(d) { return d.getSeconds(); }],
+          ["%H:%M", function(d) { return d.getMinutes(); }],
+          ["%H:%M", function(d) { return d.getHours(); }],
+          ['%m/%e', function() { return true; }]
+         ])
+       ];
 
   var dayFormatUtc = d3_time.format.utc('%b %e'),
       yearFormatUtc = d3_time.format.utc.multi([
@@ -372,7 +384,9 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
       [d3_time.minute, 15, intradayFormat],
       [d3_time.minute, 30, intradayFormat],
       [d3_time.hour, 1, intradayFormat],
+      [d3_time.hour, 2, intradayFormat],
       [d3_time.hour, 3, intradayFormat],
+      [d3_time.hour, 4, intradayFormat],
       [d3_time.hour, 6, intradayFormat],
       [d3_time.hour, 12, intradayFormat],
       [d3_time.day, 1, dayFormat]
