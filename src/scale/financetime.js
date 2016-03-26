@@ -168,6 +168,18 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
 
       var method = interval === undefined ? tickMethod(visibleDomain, indexDomain, 10) :
                     typeof interval === 'number' ? tickMethod(visibleDomain, indexDomain, interval) : null;
+      /*
+      var method;
+      if ( typeof interval === 'undefined' ) {
+        method = tickMethod(visibleDomain, indexDomain, 10);
+      }
+      else if ( typeof interval === 'number' ) {
+        method = tickMethod(visibleDomain, indexDomain, interval);
+      }
+      else {
+        method = null;
+      }
+      */
 
       tickState.tickFormat = method ? method[2] : tickMethod(visibleDomain, indexDomain, 10)[2];
 
@@ -197,7 +209,7 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         i = d3_bisect(tickSteps, target);
 
       if ( i == methods.length ) { // return the largest tick method
-        return methods[i-1]; 
+        return methods[i-1];
       }
       else {
         if ( i ) {
@@ -210,7 +222,7 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
           diffs.sort(function(a, b){
               return a[1]-b[1];
           });
-          return methods[diffs[0][0]]; 
+          return methods[diffs[0][0]];
         }
         else {
           return methods[0];
