@@ -186,16 +186,47 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
     function tickMethod(visibleDomain, indexDomain, count) {
       if(visibleDomain.length == 1) return genericFormat; // If we only have 1 to display, show the generic tick method
 
-      var visibleDomainExtent = visibleDomain[visibleDomain.length-1] - visibleDomain[0],
-        intraday = visibleDomainExtent/dailyStep < 1, // Determine whether we're showing daily or intraday data
-        methods = intraday ? tickMethods.intraday : tickMethods.daily,
+      var visibleDomainIncrement = visibleDomain[1] - visibleDomain[0],
+        intraday_data = visibleDomainIncrement/dailyStep < 1, // Determine whether we're showing daily or intraday data
+        visibleDomainExtent = visibleDomain[visibleDomain.length-1] - visibleDomain[0],
+        days_visible = visibleDomainExtent/dailyStep,
+        intraday = (intraday_data & days_visible < 3),
+        methods = intraday  ? tickMethods.intraday : tickMethods.daily,
         tickSteps = intraday ? intradayTickSteps : dailyTickSteps,
         k = Math.min(Math.round(countK(visibleDomain, indexDomain)*count), count),
         target = visibleDomainExtent/k, // Adjust the target based on proportion of domain that is visible
         i = d3_bisect(tickSteps, target);
 
-      return i == methods.length ? methods[i-1] : // Return the largest tick method
-        i ? methods[target/tickSteps[i-1] < tickSteps[i]/target ? i-1 : i] : methods[i]; // Else return close approximation or first tickMethod
+      if ( i == methods.length ) { // return the largest tick method
+        return methods[i-1]; 
+      }
+      else {
+        if ( i ) {
+          //try to search index j (i +/- 1) for
+          //tickSteps[j]/target ratio closest to 1
+          var diffs = [];
+          [i-1, i, i+1].forEach(function(j){
+              diffs.push([j, Math.abs(1-tickSteps[j]/target)]);
+          });
+          diffs.sort(function(a, b){
+              return a[1]-b[1];
+          });
+          return methods[diffs[0][0]]; 
+
+          //if ( target/tickSteps[i-1] < tickSteps[i]/target) {
+          //  return methods[i-1];
+          //}
+          //else {
+          //  return methods[i];
+          //}
+        }
+        else {
+          return methods[0];
+        }
+      }
+
+      //return i == methods.length ? methods[i-1] : // Return the largest tick method
+      //  i ? methods[target/tickSteps[i-1] < tickSteps[i]/target ? i-1 : i] : methods[i]; // Else return close approximation or first tickMethod
     }
 
     /**
@@ -286,10 +317,14 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         15e3,   // 15-second
         3e4,    // 30-second
         6e4,    // 1-minute
+        12e4,   // 2-minute
         3e5,    // 5-minute
+        6e5,    // 10-minute
         9e5,    // 15-minute
         18e5,   // 30-minute
+        27e5,   // 45-minute
         36e5,   // 1-hour
+        72e5,   // 2-hour
         108e5,  // 3-hour
         216e5,  // 6-hour
         432e5,  // 12-hour
@@ -345,10 +380,14 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
       [d3_time.second, 15, intradayFormat],
       [d3_time.second, 30, intradayFormat],
       [d3_time.minute, 1, intradayFormat],
+      [d3_time.minute, 2, intradayFormat],
       [d3_time.minute, 5, intradayFormat],
+      [d3_time.minute, 10, intradayFormat],
       [d3_time.minute, 15, intradayFormat],
       [d3_time.minute, 30, intradayFormat],
+      [d3_time.minute, 45, intradayFormat],
       [d3_time.hour, 1, intradayFormat],
+      [d3_time.hour, 2, intradayFormat],
       [d3_time.hour, 3, intradayFormat],
       [d3_time.hour, 6, intradayFormat],
       [d3_time.hour, 12, intradayFormat],
