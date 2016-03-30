@@ -198,15 +198,25 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
       if(visibleDomain.length == 1) return genericFormat; // If we only have 1 to display, show the generic tick method
 
       var visibleDomainIncrement = visibleDomain[1] - visibleDomain[0],
-        intraday_data = visibleDomainIncrement/dailyStep < 1, // Determine whether we're showing daily or intraday data
+        gap = visibleDomainIncrement / dailyStep,
+        intraday_data = gap < 1, // Determine whether we're showing daily or intraday data
         visibleDomainExtent = visibleDomain[visibleDomain.length-1] - visibleDomain[0],
         days_visible = visibleDomainExtent/dailyStep,
-        intraday = (intraday_data & days_visible < 3),
+        intraday = (intraday_data & days_visible < 6),
         methods = intraday  ? tickMethods.intraday : tickMethods.daily,
         tickSteps = intraday ? intradayTickSteps : dailyTickSteps,
         k = Math.min(Math.round(countK(visibleDomain, indexDomain)*count), count),
         target = visibleDomainExtent/k, // Adjust the target based on proportion of domain that is visible
         i = d3_bisect(tickSteps, target);
+        prev_date = undefined;
+      /*
+      if (intraday && gap > 0.9 && gap < 3.4)
+        i = 8;
+      if (intraday && gap > 0.85 && gap <= 0.9)
+        i = 7;
+      if (intraday && gap > 0.67 && gap <= 0.85)
+        i = Math.max(i - 3, 6);
+      */
 
       if ( i == methods.length ) { // return the largest tick method
         return methods[i-1];
@@ -322,14 +332,14 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         864e5   // 1-day
       ];
 
-  var prev_date;
-  var dayFormat = d3_time.format('%m/%e'),
+  var prev_date = undefined;
+  var dayFormat = d3_time.format('%b %e'),
       yearFormat = d3_time.format.multi([
         ['%b', function(d) { return d.getMonth(); }],
         ['%Y', function() { return true; }]
       ]),
       intradayFormat = d3_time.format.multi([
-        ["%m/%e", function(d) {
+        ["%b %e", function(d) {
            if (prev_date !== undefined && d.getDate() != prev_date.getDate()) {
                prev_date = d;
                return true;
@@ -337,9 +347,15 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
            prev_date = d;
            return false;
         }],
-        ["%H:%M:%S", function(d) { prev_date = d; return d.getSeconds(); }],
-        ["%H:%M", function(d) { prev_date = d; return d.getMinutes(); }],
-        ["%H:%M", function (d) { prev_date = d; return true; }]
+        ["%H:%M", function(d) { 
+            prev_date = d; 
+            if ( d.getHours() >= 16 ) {
+                console.log(d);
+                return false;
+            }
+            return true; }],
+        ['', function(d){ return true; }],
+        //["%H:%M", function (d) { prev_date = d; return true; }]
       ]),
       genericFormat = [d3_time.second, 1, d3_time.format.multi([
           [":%S", function(d) { return d.getSeconds(); }],
