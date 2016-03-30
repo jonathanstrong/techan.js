@@ -168,18 +168,6 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
 
       var method = interval === undefined ? tickMethod(visibleDomain, indexDomain, 10) :
                     typeof interval === 'number' ? tickMethod(visibleDomain, indexDomain, interval) : null;
-      /*
-      var method;
-      if ( typeof interval === 'undefined' ) {
-        method = tickMethod(visibleDomain, indexDomain, 10);
-      }
-      else if ( typeof interval === 'number' ) {
-        method = tickMethod(visibleDomain, indexDomain, interval);
-      }
-      else {
-        method = null;
-      }
-      */
 
       tickState.tickFormat = method ? method[2] : tickMethod(visibleDomain, indexDomain, 10)[2];
 
@@ -209,24 +197,16 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         target = visibleDomainExtent/k, // Adjust the target based on proportion of domain that is visible
         i = d3_bisect(tickSteps, target);
         prev_date = undefined;
-      /*
-      if (intraday && gap > 0.9 && gap < 3.4)
-        i = 8;
-      if (intraday && gap > 0.85 && gap <= 0.9)
-        i = 7;
-      if (intraday && gap > 0.67 && gap <= 0.85)
-        i = Math.max(i - 3, 6);
-      */
 
       if ( i == methods.length ) { // return the largest tick method
         return methods[i-1];
       }
       else {
         if ( i ) {
-          //try to search index j (i +/- 1) for
-          //tickSteps[j]/target ratio closest to 1
+          // search index j (i +/- 1) for
+          // tickSteps[j]/target ratio closest to 1
           var diffs = [];
-          [i-1, i, i+1].forEach(function(j){
+          d3.range(methods.length).forEach(function(j){
               diffs.push([j, Math.abs(1-tickSteps[j]/target)]);
           });
           diffs.sort(function(a, b){
@@ -350,11 +330,11 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         ["%H:%M", function(d) { 
             prev_date = d; 
             if ( d.getHours() >= 16 ) {
-                console.log(d);
+                //console.log(d);
                 return false;
             }
             return true; }],
-        ['', function(d){ return true; }],
+        ['', function(d){ prev_date = d; return true; }],
         //["%H:%M", function (d) { prev_date = d; return true; }]
       ]),
       genericFormat = [d3_time.second, 1, d3_time.format.multi([
