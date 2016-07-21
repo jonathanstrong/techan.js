@@ -1,6 +1,6 @@
 /*
  TechanJS v0.6.0
- (c) 2014 - 2015 Andre Dumas | https://github.com/andredumas/techan.js
+ (c) 2014 - 2016 Andre Dumas | https://github.com/andredumas/techan.js
 */
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.techan = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';module.exports='0.6.0';
@@ -3680,6 +3680,18 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
 
       var method = interval === undefined ? tickMethod(visibleDomain, indexDomain, 10) :
                     typeof interval === 'number' ? tickMethod(visibleDomain, indexDomain, interval) : null;
+      /*
+      var method;
+      if ( typeof interval === 'undefined' ) {
+        method = tickMethod(visibleDomain, indexDomain, 10);
+      }
+      else if ( typeof interval === 'number' ) {
+        method = tickMethod(visibleDomain, indexDomain, interval);
+      }
+      else {
+        method = null;
+      }
+      */
 
       tickState.tickFormat = method ? method[2] : tickMethod(visibleDomain, indexDomain, 10)[2];
 
@@ -3694,20 +3706,50 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         .map(domainTicks(visibleDomain, closestTicks))    // Line up interval ticks with domain, possibly adding duplicates
         .reduce(sequentialDuplicates, []);                // Filter out duplicates, produce new 'reduced' array
     };
-
     function tickMethod(visibleDomain, indexDomain, count) {
       if(visibleDomain.length == 1) return genericFormat; // If we only have 1 to display, show the generic tick method
 
-      var visibleDomainExtent = visibleDomain[visibleDomain.length-1] - visibleDomain[0],
-        intraday = visibleDomainExtent/dailyStep < 1, // Determine whether we're showing daily or intraday data
-        methods = intraday ? tickMethods.intraday : tickMethods.daily,
+      var visibleDomainIncrement = visibleDomain[1] - visibleDomain[0],
+        gap = visibleDomainIncrement / dailyStep,
+        intraday_data = gap < 1, // Determine whether we're showing daily or intraday data
+        visibleDomainExtent = visibleDomain[visibleDomain.length-1] - visibleDomain[0],
+        days_visible = visibleDomainExtent/dailyStep,
+        intraday = (intraday_data & days_visible < 6),
+        methods = intraday  ? tickMethods.intraday : tickMethods.daily,
         tickSteps = intraday ? intradayTickSteps : dailyTickSteps,
         k = Math.min(Math.round(countK(visibleDomain, indexDomain)*count), count),
         target = visibleDomainExtent/k, // Adjust the target based on proportion of domain that is visible
         i = d3_bisect(tickSteps, target);
+        prev_date = undefined;
+      /*
+      if (intraday && gap > 0.9 && gap < 3.4)
+        i = 8;
+      if (intraday && gap > 0.85 && gap <= 0.9)
+        i = 7;
+      if (intraday && gap > 0.67 && gap <= 0.85)
+        i = Math.max(i - 3, 6);
+      */
 
-      return i == methods.length ? methods[i-1] : // Return the largest tick method
-        i ? methods[target/tickSteps[i-1] < tickSteps[i]/target ? i-1 : i] : methods[i]; // Else return close approximation or first tickMethod
+      if ( i == methods.length ) { // return the largest tick method
+        return methods[i-1];
+      }
+      else {
+        if ( i ) {
+          //try to search index j (i +/- 1) for
+          //tickSteps[j]/target ratio closest to 1
+          var diffs = [];
+          [i-1, i, i+1].forEach(function(j){
+              diffs.push([j, Math.abs(1-tickSteps[j]/target)]);
+          });
+          diffs.sort(function(a, b){
+              return a[1]-b[1];
+          });
+          return methods[diffs[0][0]];
+        }
+        else {
+          return methods[0];
+        }
+      }
     }
 
     /**
@@ -3766,16 +3808,7 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
     return function(d) {
       var value = visibleDomainLookup[+d];
       if (value !== undefined) return visibleDomain[value];
-      var index = d3_bisect(visibleDomain, d);
-      if (closest && index > 0) {
-        // d3_bisect gets the index of the closest value that is the greater than d,
-        // which may not be the value that is closest to d.
-        // If the closest value that is smaller than d is closer, choose that instead.
-        if ((+d - (+visibleDomain[index-1])) < (+visibleDomain[index] - +d)) {
-          index--;
-        }
-      }
-      return visibleDomain[index];
+      return visibleDomain[d3_bisect(visibleDomain, d)];
     };
   }
 
@@ -3783,6 +3816,7 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
     if(previous.length === 0 || previous[previous.length-1] !== current) previous.push(current);
     return previous;
   }
+
 
   var dailyStep = 864e5,
       dailyTickSteps = [
@@ -3801,22 +3835,39 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
         3e5,    // 5-minute
         9e5,    // 15-minute
         18e5,   // 30-minute
-        36e5,   // 1-hour
-        108e5,  // 3-hour
-        216e5,  // 6-hour
-        432e5,  // 12-hour
+        1*36e5, // 1-hour
+        2*36e5, // 2-hour
+        3*36e5, // 3-hour
+        4*36e5, // 4-hour
+        6*36e5, // 6-hour
+        12*36e5,// 12-hour
         864e5   // 1-day
       ];
 
+  var prev_date = undefined;
   var dayFormat = d3_time.format('%b %e'),
       yearFormat = d3_time.format.multi([
-        ['%b %Y', function(d) { return d.getMonth(); }],
+        ['%b', function(d) { return d.getMonth(); }],
         ['%Y', function() { return true; }]
       ]),
       intradayFormat = d3_time.format.multi([
-        [":%S", function(d) { return d.getSeconds(); }],
-        ["%I:%M", function(d) { return d.getMinutes(); }],
-        ["%I %p", function () { return true; }]
+        ["%b %e", function(d) {
+           if (prev_date !== undefined && d.getDate() != prev_date.getDate()) {
+               prev_date = d;
+               return true;
+           }
+           prev_date = d;
+           return false;
+        }],
+        ["%H:%M", function(d) { 
+            prev_date = d; 
+            if ( d.getHours() >= 16 ) {
+                //console.log(d);
+                return false;
+            }
+            return true; }],
+        ['', function(d){ prev_date = d; return true; }],
+        //["%H:%M", function (d) { prev_date = d; return true; }]
       ]),
       genericFormat = [d3_time.second, 1, d3_time.format.multi([
           [":%S", function(d) { return d.getSeconds(); }],
@@ -3861,7 +3912,9 @@ module.exports = function(d3_scale_linear, d3_time, d3_bisect, techan_util_rebin
       [d3_time.minute, 15, intradayFormat],
       [d3_time.minute, 30, intradayFormat],
       [d3_time.hour, 1, intradayFormat],
+      [d3_time.hour, 2, intradayFormat],
       [d3_time.hour, 3, intradayFormat],
+      [d3_time.hour, 4, intradayFormat],
       [d3_time.hour, 6, intradayFormat],
       [d3_time.hour, 12, intradayFormat],
       [d3_time.day, 1, dayFormat]
